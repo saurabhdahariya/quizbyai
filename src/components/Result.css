@@ -1,0 +1,55 @@
+/* Container styling */
+.result-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f4f4f9;
+  font-family: Arial, sans-serif;
+}
+
+/* Card styling */
+.result-card {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  width: 300px;
+}
+
+/* Title styling */
+.result-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333333;
+}
+
+/* Score styling */
+.result-score {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #555555;
+}
+
+.result-score span {
+  font-weight: bold;
+  color: #007bff;
+}
+
+/* Button styling */
+.result-button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.result-button:hover {
+  background-color: #0056b3;
+}
