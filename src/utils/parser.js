@@ -3,7 +3,11 @@ export function parseQuestions(text) {
   const blocks = text.trim().split(/Question:\s*/).slice(1);
   console.log("Blocks:", blocks);
 
-  return blocks.map((block, blockIndex) => {
+  // Create a Set to track question text for deduplication
+  const questionTexts = new Set();
+
+  // Parse all questions
+  const parsedQuestions = blocks.map((block, blockIndex) => {
     const qMatch = block.match(/^(.*?)\n/);
     const q = qMatch ? qMatch[1] : '';
     console.log(`Question ${blockIndex + 1}:`, q);
@@ -109,5 +113,19 @@ export function parseQuestions(text) {
       answer,
       explanation: eMatch ? eMatch[1].trim() : ''
     };
-  }).filter(q => q.question && q.options.length > 0); // Filter out any invalid questions
+  });
+
+  // Filter out invalid questions and deduplicate
+  return parsedQuestions
+    .filter(q => q.question && q.options.length > 0) // Filter out invalid questions
+    .filter(q => {
+      // Deduplicate questions by their text
+      const questionText = q.question.toLowerCase().trim();
+      if (questionTexts.has(questionText)) {
+        console.log(`Removing duplicate question: ${q.question}`);
+        return false;
+      }
+      questionTexts.add(questionText);
+      return true;
+    });
 }

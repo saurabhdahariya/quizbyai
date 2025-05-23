@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Clock, AlertCircle, Home, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import { generateQuestions } from '../utils/api';
 import { parseQuestions } from '../utils/parser';
+import Header from './Header';
+import Button from './ui/Button';
+import Card, { CardContent, CardHeader } from './ui/Card';
+import PageTransition from './PageTransition';
 
 function Quiz() {
   const { state } = useLocation();
@@ -79,11 +85,117 @@ function Quiz() {
     async function load() {
       try {
         setLoading(true);
-        const raw = await generateQuestions(topic, difficulty, numQuestions);
+
+        // Request more questions than needed to account for potential duplicates or parsing failures
+        const requestedQuestions = Math.min(Math.max(numQuestions * 1.5, numQuestions + 5), 20);
+        console.log(`Requesting ${requestedQuestions} questions for topic: ${topic}`);
+
+        // Normalize topic name to improve matching
+        const normalizedTopic = topic.trim();
+
+        // Add topic-specific prefixes for better results
+        let topicPrompt = normalizedTopic;
+
+        // Special handling for common topics
+        if (normalizedTopic.toLowerCase() === 'math' || normalizedTopic.toLowerCase() === 'mathematics') {
+          topicPrompt = 'Mathematics and mathematical concepts';
+        } else if (normalizedTopic.toLowerCase() === 'javascript') {
+          topicPrompt = 'JavaScript programming language';
+        } else if (normalizedTopic.toLowerCase() === 'react') {
+          topicPrompt = 'React.js framework';
+        }
+
+        console.log(`Using topic prompt: "${topicPrompt}"`);
+        const raw = await generateQuestions(topicPrompt, difficulty, requestedQuestions);
         console.log("Raw API response:", raw);
-        const parsed = parseQuestions(raw);
+
+        let parsed = parseQuestions(raw);
         console.log("Parsed questions:", parsed);
-        setQuestions(parsed);
+
+        // If we don't have enough questions, try to get more with different prompts
+        if (parsed.length < numQuestions) {
+          console.log(`Not enough questions (${parsed.length}/${numQuestions}). Trying again with alternative prompts...`);
+
+          // Try different phrasings to get better topic-specific questions
+          let alternativePrompts = [];
+
+          // Topic-specific alternative prompts
+          if (normalizedTopic.toLowerCase() === 'math' || normalizedTopic.toLowerCase() === 'mathematics') {
+            alternativePrompts = [
+              'Mathematics quiz questions',
+              'Math problems and solutions',
+              'Mathematical concepts quiz',
+              'Algebra, geometry, and calculus questions',
+              'Math formulas and principles test'
+            ];
+          } else if (normalizedTopic.toLowerCase() === 'javascript') {
+            alternativePrompts = [
+              'JavaScript programming quiz',
+              'JS coding questions',
+              'JavaScript syntax and concepts',
+              'Web development with JavaScript',
+              'JavaScript functions and objects quiz'
+            ];
+          } else if (normalizedTopic.toLowerCase() === 'react') {
+            alternativePrompts = [
+              'React.js framework quiz',
+              'React components and hooks',
+              'React state management questions',
+              'Frontend development with React',
+              'JSX and React principles'
+            ];
+          } else {
+            // Generic alternative prompts for other topics
+            alternativePrompts = [
+              `${topic} knowledge test`,
+              `${topic} quiz questions`,
+              `${topic} specific questions`,
+              `questions about ${topic}`,
+              `${topic} facts and information`
+            ];
+          }
+
+          // Try each alternative prompt until we have enough questions
+          for (const altPrompt of alternativePrompts) {
+            if (parsed.length >= numQuestions) break;
+
+            console.log(`Trying alternative prompt: "${altPrompt}"`);
+            const additionalRaw = await generateQuestions(
+              altPrompt,
+              difficulty,
+              numQuestions - parsed.length + 2
+            );
+
+            // Parse the additional questions (for logging purposes)
+            const additionalParsed = parseQuestions(additionalRaw);
+            console.log(`Got ${additionalParsed.length} additional questions from "${altPrompt}"`);
+
+            // Combine the questions, avoiding duplicates (the parser handles deduplication)
+            const combinedRaw = raw + '\n\n' + additionalRaw;
+            parsed = parseQuestions(combinedRaw);
+
+            if (parsed.length >= numQuestions) {
+              console.log(`Reached target question count with prompt "${altPrompt}"`);
+              break;
+            }
+          }
+        }
+
+        // Limit to the requested number of questions
+        const finalQuestions = parsed.slice(0, numQuestions);
+        console.log(`Final questions count: ${finalQuestions.length}`);
+
+        if (finalQuestions.length === 0) {
+          setError(`No valid questions could be generated for "${topic}". Please try a different topic.`);
+          setLoading(false);
+          return;
+        }
+
+        if (finalQuestions.length < numQuestions) {
+          console.warn(`Could only generate ${finalQuestions.length} questions instead of the requested ${numQuestions}`);
+        }
+
+        setQuestions(finalQuestions);
         setLoading(false);
 
         // Start timer if timePerQuestion is set
@@ -93,7 +205,7 @@ function Quiz() {
         }
       } catch (err) {
         console.error("Failed to load questions:", err);
-        setError("Failed to load questions. Please try again.");
+        setError(`Failed to load questions: ${err.message || 'Unknown error'}. Please try again.`);
         setLoading(false);
       }
     }
@@ -119,44 +231,135 @@ function Quiz() {
   // Loading and error states
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-700">Loading questions...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <Header />
+        <PageTransition>
+          <div className="container mx-auto px-4 py-12 flex items-center justify-center min-h-[80vh]">
+            <Card className="w-full max-w-md p-8 text-center" glass>
+              <motion.div
+                className="mx-auto mb-6 relative"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <div className="w-16 h-16 border-4 border-primary-200 dark:border-primary-900 border-t-primary-600 dark:border-t-primary-400 rounded-full animate-spin mx-auto"></div>
+                <motion.div
+                  className="absolute inset-0 flex items-center justify-center text-primary-600 dark:text-primary-400"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <Clock className="w-6 h-6" />
+                </motion.div>
+              </motion.div>
+              <motion.h2
+                className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                Preparing Your Quiz
+              </motion.h2>
+              <motion.p
+                className="text-slate-600 dark:text-slate-400"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                Loading questions about {topic}...
+              </motion.p>
+            </Card>
+          </div>
+        </PageTransition>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <div className="text-red-500 text-5xl mb-4">⚠️</div>
-          <p className="text-lg text-gray-700">{error}</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Back to Home
-          </button>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <Header />
+        <PageTransition>
+          <div className="container mx-auto px-4 py-12 flex items-center justify-center min-h-[80vh]">
+            <Card className="w-full max-w-md p-8 text-center" glass>
+              <motion.div
+                className="mx-auto mb-6 text-red-500 dark:text-red-400"
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <AlertCircle className="w-16 h-16 mx-auto" />
+              </motion.div>
+              <motion.h2
+                className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                Something Went Wrong
+              </motion.h2>
+              <motion.p
+                className="text-slate-600 dark:text-slate-400 mb-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                {error}
+              </motion.p>
+              <Button
+                onClick={() => navigate('/')}
+                variant="primary"
+                size="lg"
+                icon={<Home className="w-4 h-4" />}
+              >
+                Back to Home
+              </Button>
+            </Card>
+          </div>
+        </PageTransition>
       </div>
     );
   }
 
   if (!questions.length) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <p className="text-lg text-gray-700">No questions available. Try another topic.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Back to Home
-          </button>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <Header />
+        <PageTransition>
+          <div className="container mx-auto px-4 py-12 flex items-center justify-center min-h-[80vh]">
+            <Card className="w-full max-w-md p-8 text-center" glass>
+              <motion.div
+                className="mx-auto mb-6 text-amber-500 dark:text-amber-400"
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <AlertCircle className="w-16 h-16 mx-auto" />
+              </motion.div>
+              <motion.h2
+                className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                No Questions Available
+              </motion.h2>
+              <motion.p
+                className="text-slate-600 dark:text-slate-400 mb-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                We couldn't find any questions for this topic. Please try a different topic.
+              </motion.p>
+              <Button
+                onClick={() => navigate('/')}
+                variant="primary"
+                size="lg"
+                icon={<Home className="w-4 h-4" />}
+              >
+                Back to Home
+              </Button>
+            </Card>
+          </div>
+        </PageTransition>
       </div>
     );
   }
@@ -208,87 +411,149 @@ function Quiz() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl">
-        {/* Quiz header */}
-        <div className="bg-blue-600 text-white p-4 rounded-t-lg">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Topic: {topic}</h2>
-            <div className="text-sm">
-              Question {current + 1} of {questions.length}
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div className="w-full bg-blue-800 rounded-full h-2.5 mt-2">
-            <div
-              className="bg-green-500 h-2.5 rounded-full"
-              style={{ width: `${((current + 1) / questions.length) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Quiz content */}
-        <div className="p-6">
-          {/* Timer display */}
-          {timePerQuestion > 0 && (
-            <div className="mb-4 flex justify-end">
-              <div className={`text-lg font-bold rounded-full w-12 h-12 flex items-center justify-center
-                ${timeLeft <= 10 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                {timeLeft}
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <Header />
+      <PageTransition>
+        <div className="container mx-auto px-4 py-8 md:py-12">
+          <Card className="w-full max-w-3xl mx-auto overflow-hidden" glass>
+            {/* Quiz header */}
+            <CardHeader className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-bold">Topic: {topic}</h2>
+                  <p className="text-sm opacity-90 mt-1">Difficulty: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {timePerQuestion > 0 && (
+                    <motion.div
+                      className={`text-lg font-bold rounded-full w-12 h-12 flex items-center justify-center
+                        ${timeLeft <= 10 ? 'bg-red-500/20 text-white' : 'bg-white/20 text-white'}`}
+                      animate={{
+                        scale: timeLeft <= 10 ? [1, 1.1, 1] : 1,
+                        transition: { repeat: timeLeft <= 10 ? Infinity : 0, duration: 1 }
+                      }}
+                    >
+                      {timeLeft}
+                    </motion.div>
+                  )}
+                  <div className="text-right">
+                    <p className="text-sm font-medium">Question</p>
+                    <p className="text-xl font-bold">{current + 1} / {questions.length}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Question */}
-          <h3 className="text-xl font-bold text-gray-800 mb-6">
-            {questions[current].question}
-          </h3>
-
-          {/* Options */}
-          <div className="space-y-3 mb-6">
-            {questions[current].options && questions[current].options.length > 0 ? (
-              questions[current].options.map((opt, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleOptionSelect(opt, i)}
-                  disabled={selectedOption !== null}
-                  className={`w-full text-left p-4 rounded-lg transition-colors flex items-start
-                    ${selectedOption === opt
-                      ? 'bg-blue-600 text-white'
-                      : selectedOption !== null
-                        ? 'bg-gray-100 text-gray-700 cursor-not-allowed'
-                        : 'bg-gray-100 hover:bg-blue-100 text-gray-700'
-                    }`}
-                >
-                  <span className="font-bold mr-3 text-lg">{optionLetters[i]}.</span>
-                  <span>{opt}</span>
-                </button>
-              ))
-            ) : (
-              <div className="text-center p-4 bg-yellow-100 text-yellow-800 rounded-lg">
-                <p>No options available for this question.</p>
-                <button
-                  onClick={() => navigate('/')}
-                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                >
-                  Back to Home
-                </button>
+              {/* Progress bar */}
+              <div className="w-full bg-white/20 rounded-full h-2 mt-4 overflow-hidden">
+                <motion.div
+                  className="bg-white h-2 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((current + 1) / questions.length) * 100}%` }}
+                  transition={{ duration: 0.5 }}
+                ></motion.div>
               </div>
-            )}
-          </div>
+            </CardHeader>
 
-          {/* Next button */}
-          {selectedOption && (
-            <button
-              onClick={handleNext}
-              className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors"
-            >
-              {current + 1 < questions.length ? 'Next Question' : 'See Results'}
-            </button>
-          )}
+            {/* Quiz content */}
+            <CardContent className="p-6 md:p-8">
+              {/* Question */}
+              <motion.div
+                key={current}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h3 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 mb-8">
+                  {questions[current].question}
+                </h3>
+
+                {/* Options */}
+                <div className="space-y-4 mb-8">
+                  {questions[current].options && questions[current].options.length > 0 ? (
+                    questions[current].options.map((opt, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: i * 0.1 }}
+                      >
+                        <motion.button
+                          onClick={() => handleOptionSelect(opt, i)}
+                          disabled={selectedOption !== null}
+                          className={`w-full text-left p-4 rounded-xl transition-all flex items-start
+                            ${selectedOption === opt
+                              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md'
+                              : selectedOption !== null
+                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed opacity-70'
+                                : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow'
+                            }`}
+                          whileHover={selectedOption === null ? { scale: 1.01 } : {}}
+                          whileTap={selectedOption === null ? { scale: 0.99 } : {}}
+                        >
+                          <span className={`font-bold mr-3 text-lg rounded-full w-8 h-8 flex items-center justify-center
+                            ${selectedOption === opt
+                              ? 'bg-white/20 text-white'
+                              : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'}`}>
+                            {optionLetters[i]}
+                          </span>
+                          <span className="pt-1">{opt}</span>
+
+                          {selectedOption === opt && (
+                            <motion.span
+                              className="ml-auto text-white"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring" }}
+                            >
+                              {opt === questions[current].answer ?
+                                <CheckCircle className="w-6 h-6" /> :
+                                <XCircle className="w-6 h-6" />
+                              }
+                            </motion.span>
+                          )}
+                        </motion.button>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <Card className="p-6 text-center bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                      <AlertCircle className="w-8 h-8 text-amber-500 dark:text-amber-400 mx-auto mb-2" />
+                      <p className="text-amber-800 dark:text-amber-200">No options available for this question.</p>
+                      <Button
+                        onClick={() => navigate('/')}
+                        variant="outline"
+                        size="md"
+                        className="mt-4"
+                        icon={<Home className="w-4 h-4" />}
+                      >
+                        Back to Home
+                      </Button>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Next button */}
+                {selectedOption && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Button
+                      onClick={handleNext}
+                      variant="gradient"
+                      size="lg"
+                      className="w-full"
+                      icon={<ChevronRight className="w-5 h-5" />}
+                    >
+                      {current + 1 < questions.length ? 'Next Question' : 'See Results'}
+                    </Button>
+                  </motion.div>
+                )}
+              </motion.div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+      </PageTransition>
     </div>
   );
 }

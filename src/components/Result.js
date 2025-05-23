@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Home, Share2, RefreshCw, Award, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import Header from './Header';
+import Button from './ui/Button';
+import Card, { CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/Card';
+import Badge from './ui/Badge';
+import Switch from './ui/Switch';
+import PageTransition from './PageTransition';
 
 function Result() {
   const { state } = useLocation();
@@ -58,127 +66,213 @@ function Result() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="container mx-auto px-4">
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Header */}
-          <div className="bg-blue-600 text-white p-6">
-            <h2 className="text-2xl font-bold">Quiz Results</h2>
-            <p className="text-sm opacity-90">Topic: {topic} | Difficulty: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</p>
-          </div>
-
-          {/* Score section */}
-          <div className="p-6 border-b">
-            <div className="flex flex-col md:flex-row items-center justify-between">
-              <div className="mb-4 md:mb-0">
-                <h3 className="text-xl font-bold text-gray-800">{getFeedback()}</h3>
-                <p className="text-gray-600">You answered {score} out of {total} questions correctly.</p>
-              </div>
-
-              <div className="relative w-32 h-32">
-                <div className="w-full h-full rounded-full flex items-center justify-center bg-blue-100">
-                  <div className="text-3xl font-bold text-blue-600">{percentage}%</div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <Header />
+      <PageTransition>
+        <div className="container mx-auto px-4 py-8 md:py-12">
+          <Card className="max-w-4xl mx-auto overflow-hidden" glass>
+            {/* Header */}
+            <CardHeader className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <CardTitle className="text-2xl font-bold">Quiz Results</CardTitle>
+                  <CardDescription className="text-white/80 mt-1">
+                    Topic: {topic} | Difficulty: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+                  </CardDescription>
                 </div>
-                {/* Circular progress indicator would go here with more complex CSS */}
-              </div>
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800">Question Review</h3>
-            <div className="flex items-center">
-              <label className="inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showExplanations}
-                  onChange={() => setShowExplanations(!showExplanations)}
-                  className="sr-only peer"
-                />
-                <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                <span className="ms-3 text-sm font-medium text-gray-700">Show Explanations</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Question review */}
-          <div className="p-6">
-            <div className="space-y-6">
-              {answers.map((answer, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg border-l-4 ${
-                    answer.isCorrect
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-red-500 bg-red-50'
-                  }`}
+                <Badge
+                  variant={percentage >= 70 ? "success" : percentage >= 50 ? "warning" : "danger"}
+                  size="lg"
+                  className="md:self-start"
                 >
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-gray-800">Question {index + 1}</h4>
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                      answer.isCorrect
-                        ? 'bg-green-200 text-green-800'
-                        : 'bg-red-200 text-red-800'
-                    }`}>
-                      {answer.isCorrect ? 'Correct' : 'Incorrect'}
-                    </span>
+                  {percentage}% Score
+                </Badge>
+              </div>
+            </CardHeader>
+
+            {/* Score section */}
+            <CardContent className="p-6 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col md:flex-row items-center justify-between">
+                <motion.div
+                  className="mb-4 md:mb-0"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">{getFeedback()}</h3>
+                  <p className="text-slate-600 dark:text-slate-400">You answered {score} out of {total} questions correctly.</p>
+                </motion.div>
+
+                <motion.div
+                  className="relative w-32 h-32"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-secondary-100 dark:from-primary-900/30 dark:to-secondary-900/30 shadow-inner">
+                    <div className="absolute inset-0 rounded-full overflow-hidden">
+                      <div
+                        className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary-500 to-secondary-500 transition-all duration-1000"
+                        style={{ height: `${percentage}%` }}
+                      ></div>
+                    </div>
+                    <div className="relative z-10 text-3xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                      {percentage}%
+                    </div>
                   </div>
+                  <motion.div
+                    className="absolute -top-2 -right-2"
+                    initial={{ rotate: -30, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    transition={{ delay: 0.5, type: "spring" }}
+                  >
+                    <Award className="w-8 h-8 text-primary-500 dark:text-primary-400" />
+                  </motion.div>
+                </motion.div>
+              </div>
+            </CardContent>
 
-                  <p className="my-2 text-gray-800">{answer.question}</p>
-
-                  <div className="mt-2">
-                    <p className="text-sm">
-                      <span className="font-semibold">Your answer:</span>
-                      <span className={answer.isCorrect ? 'text-green-600' : 'text-red-600'}>
-                        {' '}{answer.userAnswer}
-                      </span>
-                    </p>
-
-                    {!answer.isCorrect && (
-                      <p className="text-sm mt-1">
-                        <span className="font-semibold">Correct answer:</span>
-                        <span className="text-green-600">{' '}{answer.correctAnswer}</span>
-                      </p>
-                    )}
-
-                    {showExplanations && answer.explanation && (
-                      <div className="mt-3 p-3 bg-gray-100 rounded-lg">
-                        <p className="text-sm text-gray-700">
-                          <span className="font-semibold">Explanation:</span> {answer.explanation}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+            {/* Controls */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Question Review</h3>
+              <Switch
+                checked={showExplanations}
+                onChange={setShowExplanations}
+                label={showExplanations ? "Hide Explanations" : "Show Explanations"}
+                description={showExplanations ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              />
             </div>
-          </div>
 
-          {/* Action buttons */}
-          <div className="p-6 bg-gray-50 flex flex-wrap gap-4">
-            <button
-              onClick={() => navigate('/')}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition-colors"
-            >
-              New Quiz
-            </button>
+            {/* Question review */}
+            <CardContent className="p-6">
+              <motion.div
+                className="space-y-6"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.1
+                    }
+                  }
+                }}
+              >
+                {answers.map((answer, index) => (
+                  <motion.div
+                    key={index}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      visible: { opacity: 1, y: 0 }
+                    }}
+                    className={`p-5 rounded-xl border shadow-sm ${
+                      answer.isCorrect
+                        ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
+                        : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200">Question {index + 1}</h4>
+                      <Badge
+                        variant={answer.isCorrect ? "success" : "danger"}
+                        size="sm"
+                      >
+                        {answer.isCorrect ? 'Correct' : 'Incorrect'}
+                      </Badge>
+                    </div>
 
-            <button
-              onClick={handleRetry}
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded transition-colors"
-            >
-              Retry This Topic
-            </button>
+                    <p className="my-3 text-slate-800 dark:text-slate-200">{answer.question}</p>
 
-            <button
-              onClick={handleShare}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded transition-colors"
-            >
-              Share Results
-            </button>
-          </div>
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-start">
+                        <span className={`inline-flex items-center justify-center rounded-full w-6 h-6 mr-2 ${
+                          answer.isCorrect
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                        }`}>
+                          {answer.isCorrect ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Your answer:
+                          </p>
+                          <p className={`text-sm ${answer.isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {answer.userAnswer}
+                          </p>
+                        </div>
+                      </div>
+
+                      {!answer.isCorrect && (
+                        <div className="flex items-start">
+                          <span className="inline-flex items-center justify-center rounded-full w-6 h-6 mr-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                            <CheckCircle className="w-4 h-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                              Correct answer:
+                            </p>
+                            <p className="text-sm text-green-600 dark:text-green-400">
+                              {answer.correctAnswer}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {showExplanations && answer.explanation && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="mt-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"
+                        >
+                          <p className="text-sm text-slate-700 dark:text-slate-300">
+                            <span className="font-semibold">Explanation:</span> {answer.explanation}
+                          </p>
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </CardContent>
+
+            {/* Action buttons */}
+            <CardFooter className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-4">
+              <Button
+                onClick={() => navigate('/')}
+                variant="primary"
+                size="lg"
+                className="flex-1"
+                icon={<Home className="w-5 h-5" />}
+              >
+                New Quiz
+              </Button>
+
+              <Button
+                onClick={handleRetry}
+                variant="secondary"
+                size="lg"
+                className="flex-1"
+                icon={<RefreshCw className="w-5 h-5" />}
+              >
+                Retry Topic
+              </Button>
+
+              <Button
+                onClick={handleShare}
+                variant="outline"
+                size="lg"
+                className="flex-1"
+                icon={<Share2 className="w-5 h-5" />}
+              >
+                Share Results
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
-      </div>
+      </PageTransition>
     </div>
   );
 }

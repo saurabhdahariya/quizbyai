@@ -3,6 +3,106 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Mock data to use when API is rate limited
 const MOCK_QUESTIONS = {
+  "Math": `Question: What is the value of π (pi) to two decimal places?
+Options:
+a) 3.14
+b) 3.16
+c) 3.12
+d) 3.18
+e) 3.20
+Answer: a) 3.14
+Explanation: The mathematical constant π (pi) is approximately equal to 3.14159, which rounds to 3.14 when expressed to two decimal places.
+
+Question: What is the formula for the area of a circle?
+Options:
+a) A = πr
+b) A = 2πr
+c) A = πr²
+d) A = πd
+e) A = r²
+Answer: c) A = πr²
+Explanation: The area of a circle is calculated using the formula A = πr², where r is the radius of the circle.
+
+Question: What is the Pythagorean theorem?
+Options:
+a) a² + b² = c²
+b) a + b = c
+c) a² - b² = c²
+d) a × b = c
+e) a/b = c
+Answer: a) a² + b² = c²
+Explanation: The Pythagorean theorem states that in a right triangle, the square of the length of the hypotenuse (c) is equal to the sum of squares of the other two sides (a and b).
+
+Question: What is the derivative of x²?
+Options:
+a) 2x
+b) x²
+c) 2
+d) x
+e) x³
+Answer: a) 2x
+Explanation: The derivative of x² with respect to x is 2x, following the power rule of differentiation: d/dx(x^n) = n*x^(n-1).
+
+Question: What is the value of log₁₀(100)?
+Options:
+a) 10
+b) 1
+c) 2
+d) 100
+e) 1000
+Answer: c) 2
+Explanation: log₁₀(100) = log₁₀(10²) = 2, because 10² = 100.
+
+Question: What is the sum of the interior angles of a triangle?
+Options:
+a) 90 degrees
+b) 180 degrees
+c) 270 degrees
+d) 360 degrees
+e) It depends on the triangle
+Answer: b) 180 degrees
+Explanation: The sum of the interior angles of any triangle is always 180 degrees.
+
+Question: What is the formula for the volume of a sphere?
+Options:
+a) V = 4/3πr³
+b) V = 4πr²
+c) V = πr³
+d) V = 4/3πr²
+e) V = 2πr³
+Answer: a) V = 4/3πr³
+Explanation: The volume of a sphere is calculated using the formula V = 4/3πr³, where r is the radius of the sphere.
+
+Question: What is the value of sin(90°)?
+Options:
+a) 0
+b) 1
+c) -1
+d) 1/2
+e) √2/2
+Answer: b) 1
+Explanation: The sine of 90 degrees is equal to 1. This is a fundamental value in trigonometry.
+
+Question: What is the definition of a prime number?
+Options:
+a) A number divisible by 2
+b) A number greater than 10
+c) A number with exactly two factors: 1 and itself
+d) A number that can be written as a fraction
+e) A number that ends in 0 or 5
+Answer: c) A number with exactly two factors: 1 and itself
+Explanation: A prime number is a natural number greater than 1 that is not a product of two smaller natural numbers, meaning it has exactly two factors: 1 and itself.
+
+Question: What is the quadratic formula?
+Options:
+a) x = (-b ± √(b² - 4ac))/2a
+b) x = -b/2a
+c) x = -b ± √(b² + 4ac)
+d) x = (-b ± √(4ac - b²))/2a
+e) x = -b/a
+Answer: a) x = (-b ± √(b² - 4ac))/2a
+Explanation: The quadratic formula is used to solve quadratic equations of the form ax² + bx + c = 0, and it is x = (-b ± √(b² - 4ac))/2a.`,
+
   "JavaScript": `Question: What is the correct way to declare a variable in JavaScript?
 Options:
 a) var x = 5
@@ -315,11 +415,22 @@ export async function generateQuestions(topic, difficulty = 'medium', numQuestio
         await sleep(backoffTime);
       }
 
-      const prompt = `Generate ${numQuestions} ${difficulty} difficulty multiple choice quiz questions on "${topic}". Format like:
-Question: ...
-Options: a) ... b) ... c) ... d) ... e) ...
+      const prompt = `Generate ${numQuestions} ${difficulty} difficulty multiple choice quiz questions specifically about "${topic}".
+
+The questions must be directly related to ${topic} and not general knowledge or other topics.
+
+Format each question exactly like this:
+Question: [clear, specific question about ${topic}]
+Options:
+a) [option text]
+b) [option text]
+c) [option text]
+d) [option text]
+e) [option text]
 Answer: [correct option with letter]
-Explanation: [brief explanation of why the answer is correct]`;
+Explanation: [brief explanation of why the answer is correct]
+
+Make sure all questions are factually accurate, have exactly one correct answer, and are specifically about ${topic}.`;
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -368,10 +479,76 @@ Explanation: [brief explanation of why the answer is correct]`;
 
   // Fallback to mock data if API calls fail
   console.log(`Using mock data for topic: ${topic}`);
-  // Find the closest matching topic or use General as default
-  const mockTopic = Object.keys(MOCK_QUESTIONS).find(key =>
-    topic.toLowerCase().includes(key.toLowerCase())
-  ) || "General";
 
-  return MOCK_QUESTIONS[mockTopic];
+  // Find the closest matching topic or use General as default
+  let mockTopic = "General";
+
+  // First, try exact match (case-insensitive)
+  const exactMatch = Object.keys(MOCK_QUESTIONS).find(key =>
+    key.toLowerCase() === topic.toLowerCase()
+  );
+
+  if (exactMatch) {
+    mockTopic = exactMatch;
+  } else {
+    // Try partial match if no exact match
+    const partialMatch = Object.keys(MOCK_QUESTIONS).find(key =>
+      topic.toLowerCase().includes(key.toLowerCase()) ||
+      key.toLowerCase().includes(topic.toLowerCase())
+    );
+
+    if (partialMatch) {
+      mockTopic = partialMatch;
+    } else {
+      // If still no match, use topic-specific keywords to determine the best match
+      const topicKeywords = {
+        "JavaScript": ["js", "javascript", "ecmascript", "node", "frontend", "web development", "programming", "coding", "js programming"],
+        "React": ["react", "reactjs", "frontend", "ui", "component", "jsx", "hooks", "state", "props", "react framework"],
+        "Math": ["math", "mathematics", "algebra", "calculus", "geometry", "trigonometry", "arithmetic", "statistics", "maths"],
+        "General": ["general", "knowledge", "trivia", "quiz", "facts", "miscellaneous"]
+      };
+
+      // Check if any keywords match the topic
+      for (const [key, keywords] of Object.entries(topicKeywords)) {
+        if (keywords.some(keyword =>
+          topic.toLowerCase().includes(keyword.toLowerCase()) ||
+          keyword.toLowerCase().includes(topic.toLowerCase())
+        )) {
+          mockTopic = key;
+          break;
+        }
+      }
+    }
+  }
+
+  console.log(`Topic "${topic}" matched to mock topic "${mockTopic}"`);
+
+
+  // Get the mock questions for the selected topic
+  const mockQuestionText = MOCK_QUESTIONS[mockTopic];
+
+  // Parse the mock questions to get an array of question objects
+  const allQuestions = mockQuestionText.split(/Question: /).filter(q => q.trim()).map(q => `Question: ${q}`);
+
+  // Get timestamp to use as part of the randomization seed
+  const timestamp = new Date().getTime();
+
+  // Shuffle the questions using a more thorough Fisher-Yates algorithm with timestamp influence
+  const shuffledQuestions = [...allQuestions];
+  for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+    // Use timestamp in the randomization to make it different each time
+    const j = Math.floor((Math.random() * (timestamp % 100) / 100 + Math.random()) % (i + 1));
+    [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
+  }
+
+  // Take only the requested number of questions
+  const selectedQuestions = shuffledQuestions.slice(0, numQuestions);
+
+  console.log(`Selected ${selectedQuestions.length} randomized questions for topic "${mockTopic}"`);
+
+  // Add a timestamp comment to force the content to be different each time
+  const timestampComment = `\n\n// Generated at: ${new Date().toISOString()}`;
+
+  // Join the selected questions back into a single string and add the timestamp comment
+  return selectedQuestions.join('\n\n') + timestampComment;
 }
