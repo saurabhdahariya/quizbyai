@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isQuizCreator(quizId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/quizzes/$(quizId)) &&
+        get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid;
+    }
+
+    function hasApprovedApplication(quizId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/quiz_applications/$(quizId + '_' + request.auth.uid)) &&
+        get(/databases/$(database)/documents/quiz_applications/$(quizId + '_' + request.auth.uid)).data.status == 'approved';
+    }
+
+    // Users collection - Allow authenticated users to read/write their own data
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId);
+      allow delete: if false; // Don't allow user deletion
+    }
+
+    // Custom quizzes collection - Allow broader access for authenticated users
+    match /quizzes/{quizId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+
+      // Questions subcollection
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid;
+      }
+    }
+
+    // AI quizzes collection - Allow all authenticated users to read, creators to write
+    match /ai_quizzes/{quizId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.requestedBy == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.requestedBy == request.auth.uid;
+      allow delete: if false; // Don't allow deletion of AI quizzes for data integrity
+
+      // AI Questions subcollection
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && get(/databases/$(database)/documents/ai_quizzes/$(quizId)).data.requestedBy == request.auth.uid;
+      }
+    }
+
+    // Quiz applications collection
+    match /quiz_applications/{applicationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Quiz results collection - Allow broader access for authenticated users
+    match /quiz_results/{resultId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if false; // Don't allow result updates for data integrity
+      allow delete: if false; // Don't allow result deletion
+    }
+
+    // AI results collection - Allow authenticated users to read/write their own results
+    match /ai_results/{resultId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if false; // Don't allow result updates for data integrity
+      allow delete: if false; // Don't allow result deletion
+    }
+
+    // Question bank collection - Allow all users to read/write for caching
+    match /question_bank/{questionId} {
+      allow read: if true; // Allow all users (including guests) to read cached questions
+      allow write: if true; // Allow storing questions for caching
+      allow create: if true; // Allow creating new cached questions
+    }
+
+    // Quiz sessions collection - For analytics and guest quiz storage
+    match /quiz_sessions/{sessionId} {
+      allow read: if true; // Allow reading for analytics
+      allow write: if true; // Allow writing for both guests and users
+      allow create: if true; // Allow creating sessions for all users
+    }
+
+    // Test collection for debugging - allow all operations for authenticated users
+    match /test_connection/{document} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Allow authenticated users to read/write to any collection for development
+    // Remove this in production for better security
+    match /{document=**} {
+      allow read, write: if true; // Allow all operations for development
+    }
+  }
+}

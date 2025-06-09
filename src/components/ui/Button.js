@@ -25,22 +25,20 @@ const Button = ({
   isLoading = false,
   icon,
   onClick,
+  as,
   ...props
 }) => {
   const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-slate-900';
   const variantClasses = variants[variant] || variants.primary;
   const sizeClasses = sizes[size] || sizes.md;
   const disabledClasses = disabled || isLoading ? 'opacity-60 cursor-not-allowed' : '';
-  
-  return (
-    <motion.button
-      whileHover={{ scale: disabled || isLoading ? 1 : 1.02 }}
-      whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
-      className={`${baseClasses} ${variantClasses} ${sizeClasses} ${disabledClasses} ${className}`}
-      disabled={disabled || isLoading}
-      onClick={onClick}
-      {...props}
-    >
+  const combinedClasses = `${baseClasses} ${variantClasses} ${sizeClasses} ${disabledClasses} ${className}`;
+
+  // If an "as" prop is provided, render as that component (e.g., Link from react-router-dom)
+  const Component = as || motion.button;
+
+  const content = (
+    <>
       {isLoading && (
         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -49,7 +47,34 @@ const Button = ({
       )}
       {icon && !isLoading && <span className="mr-2">{icon}</span>}
       {children}
-    </motion.button>
+    </>
+  );
+
+  // If rendering as a button, add motion effects and button-specific props
+  if (!as) {
+    return (
+      <motion.button
+        whileHover={{ scale: disabled || isLoading ? 1 : 1.02 }}
+        whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
+        className={combinedClasses}
+        disabled={disabled || isLoading}
+        onClick={onClick}
+        {...props}
+      >
+        {content}
+      </motion.button>
+    );
+  }
+
+  // Otherwise, render as the specified component with appropriate props
+  return (
+    <Component
+      className={combinedClasses}
+      onClick={onClick}
+      {...props}
+    >
+      {content}
+    </Component>
   );
 };
 

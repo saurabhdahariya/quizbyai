@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Share2, RefreshCw, Award, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { Home, Share2, RefreshCw, Award, Eye, EyeOff, CheckCircle, XCircle, UserPlus, BarChart } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import Button from './ui/Button';
 import Card, { CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/Card';
@@ -12,6 +13,7 @@ import PageTransition from './PageTransition';
 function Result() {
   const { state } = useLocation();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
   // Default values in case state is missing
   const score = state?.score || 0;
@@ -270,6 +272,38 @@ function Result() {
                 Share Results
               </Button>
             </CardFooter>
+
+            {/* Save progress section */}
+            {!currentUser && (
+              <div className="p-6 bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 border-t border-slate-200 dark:border-slate-700">
+                <div className="text-center mb-4">
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">Save Your Progress</h3>
+                  <p className="text-slate-600 dark:text-slate-400">Create an account to track your quiz history and results</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button
+                    as={Link}
+                    to="/signup"
+                    variant="gradient"
+                    size="lg"
+                    icon={<UserPlus className="w-5 h-5" />}
+                  >
+                    Sign Up
+                  </Button>
+
+                  <Button
+                    as={Link}
+                    to="/login"
+                    variant="outline"
+                    size="lg"
+                    icon={<BarChart className="w-5 h-5" />}
+                  >
+                    Log In
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
       </PageTransition>
