@@ -1,6 +1,53 @@
-# Getting Started with Create React App
+# 🎯 QuizByAI - AI-Powered Quiz Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern, production-ready quiz application powered by **OpenAI GPT-3.5 Turbo** and built with React, Firebase, and Tailwind CSS.
+
+## ✨ Features
+
+- 🤖 **AI-Generated Questions**: Ultra-realistic exam questions using OpenAI GPT-3.5 Turbo
+- 📚 **Multiple Exam Types**: NEET, JEE, UPSC, and custom topics
+- 🎯 **5-Option MCQs**: Professional exam-style questions (A, B, C, D, E)
+- 🔐 **Firebase Authentication**: Secure user management with Google Sign-in
+- 📊 **Progress Tracking**: Comprehensive analytics and performance insights
+- 📱 **Mobile Responsive**: Optimized for all devices
+- ⚡ **Real-time Database**: Firestore integration for instant updates
+- 🎨 **Modern UI**: Beautiful interface with Tailwind CSS and Framer Motion
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- OpenAI API key
+- Firebase project
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/saurabhdahariya/quizbyai.git
+cd quizbyai
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Environment Setup**
+Create `.env.local` file in the root directory:
+```env
+# OpenAI Configuration
+REACT_APP_OPENAI_API_KEY=your_openai_api_key_here
+
+# Firebase Configuration
+REACT_APP_FIREBASE_API_KEY=your_firebase_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+```
 
 ## Available Scripts
 
