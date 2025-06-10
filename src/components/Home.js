@@ -401,7 +401,7 @@ const Home = () => {
                   <Github className="h-3 w-3" />
                 </motion.a>
                 <motion.a
-                  href="mailto:contact@quizbyai.com"
+                  href="saurabhdahariya81@outllok.com"
                   className="p-1 bg-slate-800 hover:bg-slate-700 rounded transition-colors"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
@@ -412,7 +412,7 @@ const Home = () => {
 
               <div className="flex items-center gap-1 text-slate-400 text-xs">
                 <Heart className="h-3 w-3 text-red-500" />
-                <span>© 2024</span>
+                <span>© 2025</span>
               </div>
             </div>
           </div>
