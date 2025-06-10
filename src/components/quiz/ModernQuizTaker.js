@@ -15,10 +15,13 @@ import {
 import Button from '../ui/Button';
 import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { generateQuestions } from '../../services/aimlApiService';
+import { useAuth } from '../../contexts/AuthContext';
+import { storeQuizSession } from '../../services/quizService';
 
 const ModernQuizTaker = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
   // Get quiz data from location state or passed questions
   const { topic, difficulty, numQuestions = 5, isGuest = false, questions: passedQuestions } = location.state || {};
@@ -115,7 +118,9 @@ const ModernQuizTaker = () => {
     setAnswers(prev => [...prev, {
       question: currentQuestion.question,
       selectedAnswer: null,
+      selectedOption: null,
       correctAnswer: currentQuestion.correctAnswer,
+      correctOption: currentQuestion.options[currentQuestion.correctAnswer],
       explanation: currentQuestion.explanation,
       isCorrect: false,
       timeExpired: true
@@ -127,6 +132,8 @@ const ModernQuizTaker = () => {
       setTimeLeft(30);
     } else {
       setShowResult(true);
+      // Store quiz results when completed
+      storeQuizResults();
     }
   };
 
@@ -145,11 +152,13 @@ const ModernQuizTaker = () => {
     }
 
     const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
-    
+
     setAnswers(prev => [...prev, {
       question: currentQuestion.question,
       selectedAnswer: selectedAnswer,
+      selectedOption: selectedAnswer !== null ? currentQuestion.options[selectedAnswer] : null,
       correctAnswer: currentQuestion.correctAnswer,
+      correctOption: currentQuestion.options[currentQuestion.correctAnswer],
       explanation: currentQuestion.explanation,
       isCorrect: isCorrect,
       timeExpired: false
@@ -161,6 +170,8 @@ const ModernQuizTaker = () => {
       setTimeLeft(30);
     } else {
       setShowResult(true);
+      // Store quiz results when completed
+      storeQuizResults();
     }
   };
 
@@ -171,6 +182,51 @@ const ModernQuizTaker = () => {
   };
 
   const getOptionLetter = (index) => String.fromCharCode(65 + index);
+
+  // Store quiz results to Firebase
+  const storeQuizResults = async () => {
+    if (!currentUser || isGuest) {
+      console.log('Skipping result storage for guest user');
+      return;
+    }
+
+    try {
+      console.log('📊 Storing quiz results to Firebase...');
+
+      // Calculate total time spent (assuming 30 seconds per question minus remaining time)
+      const totalTimeSpent = (currentQuestionIndex + 1) * 30 - timeLeft;
+
+      // Calculate quiz statistics
+      const correctCount = answers.filter(a => a.isCorrect).length;
+      const percentage = Math.round((correctCount / quizQuestions.length) * 100);
+
+      // Store quiz session for analytics
+      const sessionData = {
+        userId: currentUser.uid,
+        topic: topic,
+        difficulty: difficulty,
+        numQuestions: quizQuestions.length,
+        timeSpent: totalTimeSpent,
+        score: correctCount,
+        percentage: percentage,
+        isGuest: false,
+        completedAt: new Date(),
+        questions: quizQuestions.map((q, index) => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          userAnswer: answers[index]?.selectedAnswer,
+          isCorrect: answers[index]?.isCorrect
+        }))
+      };
+
+      await storeQuizSession(sessionData);
+      console.log('✅ Quiz results stored successfully');
+    } catch (error) {
+      console.error('❌ Error storing quiz results:', error);
+      // Don't show error to user, just log it
+    }
+  };
 
   if (!topic) {
     navigate('/');
@@ -310,16 +366,16 @@ const ModernQuizTaker = () => {
                                 {answer.timeExpired
                                   ? 'Time Expired'
                                   : answer.selectedAnswer !== null
-                                  ? `${getOptionLetter(answer.selectedAnswer)}) ${quizQuestions[index].options[answer.selectedAnswer]}`
+                                  ? `${getOptionLetter(answer.selectedAnswer)}) ${answer.selectedOption}`
                                   : 'No Answer'
                                 }
                               </span>
                             </div>
-                            
+
                             <div>
                               <span className="font-medium text-slate-600 dark:text-slate-400">Correct Answer: </span>
                               <span className="text-green-600 dark:text-green-400">
-                                {getOptionLetter(answer.correctAnswer)}) {quizQuestions[index].options[answer.correctAnswer]}
+                                {getOptionLetter(answer.correctAnswer)}) {answer.correctOption}
                               </span>
                             </div>
                             

@@ -282,16 +282,23 @@ export const parseJSONQuestions = (text) => {
         throw new Error(`Question ${index + 1} doesn't have enough options`);
       }
 
-      // Find correct answer text
+      // Find correct answer text and index
       const correctAnswer = q.options[q.correct_option];
       if (!correctAnswer) {
         throw new Error(`Question ${index + 1} has invalid correct option`);
       }
 
+      // Find the index of the correct answer in the options array
+      const correctAnswerIndex = optionsArray.findIndex(option => option === correctAnswer);
+      if (correctAnswerIndex === -1) {
+        throw new Error(`Question ${index + 1} correct answer not found in options`);
+      }
+
       return {
         question: q.question,
         options: optionsArray.slice(0, 5), // Take up to 5 options
-        answer: correctAnswer,
+        answer: correctAnswer, // Keep text for display
+        correctAnswer: correctAnswerIndex, // Add index for comparison
         explanation: q.explanation || 'No explanation provided'
       };
     });
@@ -392,19 +399,26 @@ const parseQuestionBlock = (block) => {
   
   const correctLetter = correctAnswerMatch[1].toUpperCase();
   const correctAnswer = optionMap[correctLetter];
-  
+
   if (!correctAnswer) {
     throw new Error('Correct answer letter does not match any option');
   }
-  
+
+  // Find the index of the correct answer
+  const correctAnswerIndex = options.findIndex(option => option === correctAnswer);
+  if (correctAnswerIndex === -1) {
+    throw new Error('Correct answer not found in options array');
+  }
+
   // Extract explanation
   const explanationMatch = block.match(/Explanation:\s*(.+?)(?=\n\n|Question\s*\d+:|$)/is);
   const explanation = explanationMatch ? explanationMatch[1].trim() : 'No explanation provided';
-  
+
   return {
     question: questionText,
     options: options.slice(0, 5), // Take up to 5 options (A-E)
-    answer: correctAnswer,
+    answer: correctAnswer, // Keep text for display
+    correctAnswer: correctAnswerIndex, // Add index for comparison
     explanation: explanation
   };
 };
@@ -425,7 +439,8 @@ export const generateFallbackQuestions = (topic, difficulty, numQuestions) => {
         `Option D for ${topic}`,
         `Option E for ${topic}`
       ],
-      answer: `Option A for ${topic}`,
+      answer: `Option A for ${topic}`, // Text for display
+      correctAnswer: 0, // Index for comparison (Option A = index 0)
       explanation: `This is a sample explanation for ${topic} question ${i}.`
     });
   }
