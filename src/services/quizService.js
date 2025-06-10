@@ -22,9 +22,14 @@ export const createQuiz = async (quizData, currentUser) => {
   try {
     console.log('Creating quiz with data:', quizData);
 
-    // Validate required fields
-    const requiredFields = ['title', 'subject', 'difficulty', 'numQuestions', 'timeLimit', 'startTime'];
+    // Validate required fields - support both createdBy and creatorId
+    const requiredFields = ['title', 'difficulty', 'numQuestions'];
     const missingFields = requiredFields.filter(field => !quizData[field]);
+
+    // Check for creator field (either createdBy or creatorId)
+    if (!quizData.createdBy && !quizData.creatorId) {
+      missingFields.push('creator (createdBy or creatorId)');
+    }
 
     if (missingFields.length > 0) {
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
@@ -38,23 +43,28 @@ export const createQuiz = async (quizData, currentUser) => {
     const quiz = {
       // Basic Information
       title: quizData.title.trim(),
-      subject: quizData.subject.trim(),
-      topic: quizData.topic?.trim() || quizData.subject,
+      subject: quizData.subject?.trim() || quizData.topic?.trim() || 'General',
+      topic: quizData.topic?.trim() || quizData.subject?.trim() || 'General',
       difficulty: quizData.difficulty,
+      description: quizData.description?.trim() || '',
 
       // Configuration
       numQuestions: parseInt(quizData.numQuestions),
-      timeLimit: parseInt(quizData.timeLimit),
+      timeLimit: parseInt(quizData.timeLimit || quizData.duration || 30),
+      duration: parseInt(quizData.duration || quizData.timeLimit || 30),
 
       // Scheduling & Access
       startTime: startTime,
       endTime: endTime,
       applicationDeadline: applicationDeadline,
 
-      // Creator Information
-      creatorId: currentUser.uid,
-      creatorName: currentUser.displayName || 'Anonymous',
-      creatorEmail: currentUser.email,
+      // Creator Information - support both field names
+      creatorId: quizData.creatorId || quizData.createdBy || currentUser.uid,
+      createdBy: quizData.createdBy || quizData.creatorId || currentUser.uid,
+      creatorName: quizData.creatorName || quizData.createdByName || currentUser.displayName || 'Anonymous',
+      createdByName: quizData.createdByName || quizData.creatorName || currentUser.displayName || 'Anonymous',
+      creatorEmail: quizData.creatorEmail || quizData.createdByEmail || currentUser.email,
+      createdByEmail: quizData.createdByEmail || quizData.creatorEmail || currentUser.email,
 
       // Access Control
       requiresApplication: quizData.requiresApplication ?? true,
@@ -62,21 +72,24 @@ export const createQuiz = async (quizData, currentUser) => {
       isPublic: quizData.isPublic ?? true,
 
       // Status
-      status: 'draft',
+      status: quizData.status || 'draft',
 
       // Statistics
       totalApplicants: 0,
       totalParticipants: 0,
       averageScore: 0,
-      questionsCount: 0,
+      questionsCount: quizData.questions?.length || 0,
+
+      // Store questions if provided
+      questions: quizData.questions || [],
 
       // Timestamps
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
 
       // Metadata
-      tags: [quizData.subject.toLowerCase()],
-      category: quizData.subject,
+      tags: [(quizData.subject || quizData.topic || 'general').toLowerCase()],
+      category: quizData.subject || quizData.topic || 'General',
       language: 'en'
     };
 
@@ -735,10 +748,45 @@ export const getPopularAIQuizzes = async (limitCount = 10) => {
 // Store quiz session for analytics and question reuse
 export const storeQuizSession = async (sessionData) => {
   try {
-    const docRef = await addDoc(collection(db, 'quiz_sessions'), {
-      ...sessionData,
+    // Clean and validate session data to prevent undefined values
+    const cleanSessionData = {
+      userId: sessionData.userId || '',
+      userName: sessionData.userName || 'Anonymous',
+      userEmail: sessionData.userEmail || '',
+      topic: sessionData.topic || 'Unknown Topic',
+      difficulty: sessionData.difficulty || 'medium',
+      numQuestions: Number(sessionData.numQuestions) || 0,
+      timeSpent: Number(sessionData.timeSpent) || 0,
+      score: Number(sessionData.score) || 0,
+      percentage: Number(sessionData.percentage) || 0,
+      isGuest: Boolean(sessionData.isGuest),
+      quizType: sessionData.quizType || 'ai_generated',
+      completedAt: sessionData.completedAt || new Date(),
+      answers: Array.isArray(sessionData.answers) ? sessionData.answers.map(answer => ({
+        questionIndex: Number(answer.questionIndex) || 0,
+        question: String(answer.question || ''),
+        selectedAnswer: answer.selectedAnswer !== null ? Number(answer.selectedAnswer) : -1,
+        selectedOption: String(answer.selectedOption || ''),
+        correctAnswer: answer.correctAnswer !== null ? Number(answer.correctAnswer) : -1,
+        correctOption: String(answer.correctOption || ''),
+        isCorrect: Boolean(answer.isCorrect),
+        timeExpired: Boolean(answer.timeExpired),
+        explanation: String(answer.explanation || '')
+      })) : [],
+      questions: Array.isArray(sessionData.questions) ? sessionData.questions.map(q => ({
+        questionIndex: Number(q.questionIndex) || 0,
+        question: String(q.question || ''),
+        options: Array.isArray(q.options) ? q.options.map(opt => String(opt)) : [],
+        correctAnswer: q.correctAnswer !== null ? Number(q.correctAnswer) : -1,
+        answer: String(q.answer || ''),
+        explanation: String(q.explanation || '')
+      })) : [],
       createdAt: serverTimestamp()
-    });
+    };
+
+    console.log('Storing cleaned session data:', cleanSessionData);
+
+    const docRef = await addDoc(collection(db, 'quiz_sessions'), cleanSessionData);
     console.log('Quiz session stored with ID:', docRef.id);
     return docRef.id;
   } catch (error) {

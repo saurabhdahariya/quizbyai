@@ -17,6 +17,8 @@ import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { generateQuestions } from '../../services/aimlApiService';
 import { useAuth } from '../../contexts/AuthContext';
 import { storeQuizSession } from '../../services/quizService';
+import { doc, updateDoc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 
 const ModernQuizTaker = () => {
   const location = useLocation();
@@ -202,29 +204,115 @@ const ModernQuizTaker = () => {
 
       // Store quiz session for analytics
       const sessionData = {
-        userId: currentUser.uid,
-        topic: topic,
-        difficulty: difficulty,
-        numQuestions: quizQuestions.length,
-        timeSpent: totalTimeSpent,
-        score: correctCount,
-        percentage: percentage,
+        userId: currentUser.uid || '',
+        userName: currentUser.displayName || 'Anonymous',
+        userEmail: currentUser.email || '',
+        topic: topic || 'Unknown Topic',
+        difficulty: difficulty || 'medium',
+        numQuestions: quizQuestions.length || 0,
+        timeSpent: totalTimeSpent || 0,
+        score: correctCount || 0,
+        percentage: percentage || 0,
         isGuest: false,
+        quizType: 'ai_generated',
         completedAt: new Date(),
+        answers: answers.map((answer, index) => ({
+          questionIndex: index,
+          question: answer.question || '',
+          selectedAnswer: answer.selectedAnswer !== null ? answer.selectedAnswer : -1,
+          selectedOption: answer.selectedOption || '',
+          correctAnswer: answer.correctAnswer !== null ? answer.correctAnswer : -1,
+          correctOption: answer.correctOption || '',
+          isCorrect: answer.isCorrect || false,
+          timeExpired: answer.timeExpired || false,
+          explanation: answer.explanation || ''
+        })),
         questions: quizQuestions.map((q, index) => ({
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-          userAnswer: answers[index]?.selectedAnswer,
-          isCorrect: answers[index]?.isCorrect
+          questionIndex: index,
+          question: q.question || '',
+          options: q.options || [],
+          correctAnswer: q.correctAnswer !== null ? q.correctAnswer : -1,
+          answer: q.answer || '',
+          explanation: q.explanation || ''
         }))
       };
 
-      await storeQuizSession(sessionData);
-      console.log('✅ Quiz results stored successfully');
+      // Store session with proper error handling
+      try {
+        await storeQuizSession(sessionData);
+        console.log('✅ Quiz session stored successfully');
+      } catch (sessionError) {
+        console.error('❌ Error storing quiz session:', sessionError);
+        // Continue with user stats update even if session storage fails
+      }
+
+      // Update user statistics
+      await updateUserStatistics(correctCount, percentage, totalTimeSpent);
+
+      console.log('✅ Quiz results processing completed');
     } catch (error) {
       console.error('❌ Error storing quiz results:', error);
       // Don't show error to user, just log it
+    }
+  };
+
+  // Update user statistics in Firebase
+  const updateUserStatistics = async (score, percentage, timeSpent) => {
+    if (!currentUser) return;
+
+    try {
+      console.log('📊 Updating user statistics...');
+
+      const userRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const currentQuizzesTaken = userData.quizzesTaken || 0;
+        const currentTotalScore = userData.totalScore || 0;
+        const currentBestScore = userData.bestScore || 0;
+        const currentTotalTimeSpent = userData.totalTimeSpent || 0;
+
+        const newQuizzesTaken = currentQuizzesTaken + 1;
+        const newTotalScore = currentTotalScore + percentage;
+        const newAverageScore = Math.round(newTotalScore / newQuizzesTaken);
+        const newBestScore = Math.max(currentBestScore, percentage);
+        const newTotalTimeSpent = currentTotalTimeSpent + timeSpent;
+
+        await setDoc(userRef, {
+          quizzesTaken: newQuizzesTaken,
+          totalScore: newTotalScore,
+          averageScore: newAverageScore,
+          bestScore: newBestScore,
+          totalTimeSpent: newTotalTimeSpent,
+          lastQuizAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        console.log('✅ User statistics updated successfully');
+      } else {
+        console.warn('User document not found, creating new one...');
+        // Create user document if it doesn't exist
+        await setDoc(userRef, {
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          name: currentUser.displayName || 'Anonymous',
+          role: 'user',
+          quizzesTaken: 1,
+          quizzesCreated: 0,
+          totalScore: percentage,
+          averageScore: percentage,
+          bestScore: percentage,
+          totalTimeSpent: timeSpent,
+          totalParticipants: 0,
+          lastQuizAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    } catch (error) {
+      console.error('❌ Error updating user statistics:', error);
+      // Don't throw error, just log it
     }
   };
 

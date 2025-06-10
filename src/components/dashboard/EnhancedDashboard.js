@@ -99,30 +99,69 @@ const EnhancedDashboard = () => {
         // Get user document for basic stats
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         const userData = userDoc.exists() ? userDoc.data() : {};
+        console.log('User data from Firebase:', userData);
 
-        // Get quiz results for this user
-        const resultsQuery = query(
-          collection(db, 'quiz_results'),
+        // Get quiz sessions for this user (AI quizzes)
+        const sessionsQuery = query(
+          collection(db, 'quiz_sessions'),
           where('userId', '==', currentUser.uid)
         );
-        const resultsSnapshot = await getDocs(resultsQuery);
-        const results = resultsSnapshot.docs.map(doc => doc.data());
+        const sessionsSnapshot = await getDocs(sessionsQuery);
+        const sessions = sessionsSnapshot.docs.map(doc => doc.data());
+        console.log('Quiz sessions found:', sessions.length);
 
-        // Get quizzes created by this user
-        const quizzesQuery = query(
-          collection(db, 'quizzes'),
-          where('creatorId', '==', currentUser.uid)
+        // Get AI quiz results for this user
+        const aiResultsQuery = query(
+          collection(db, 'ai_results'),
+          where('userId', '==', currentUser.uid)
         );
-        const quizzesSnapshot = await getDocs(quizzesQuery);
-        const quizzes = quizzesSnapshot.docs.map(doc => doc.data());
+        const aiResultsSnapshot = await getDocs(aiResultsQuery);
+        const aiResults = aiResultsSnapshot.docs.map(doc => doc.data());
+        console.log('AI results found:', aiResults.length);
 
-        // Calculate statistics
-        const totalQuizzesTaken = results.length;
-        const averageScore = results.length > 0
-          ? Math.round(results.reduce((sum, result) => sum + (result.percentage || 0), 0) / results.length)
-          : 0;
-        const quizzesOrganized = quizzes.length;
-        const totalParticipants = quizzes.reduce((sum, quiz) => sum + (quiz.totalParticipants || 0), 0);
+        // Get quizzes created by this user (try both field names)
+        let quizzes = [];
+        try {
+          const quizzesQuery1 = query(
+            collection(db, 'quizzes'),
+            where('createdBy', '==', currentUser.uid)
+          );
+          const quizzesSnapshot1 = await getDocs(quizzesQuery1);
+          quizzes = [...quizzes, ...quizzesSnapshot1.docs.map(doc => doc.data())];
+        } catch (error) {
+          console.log('Error querying with createdBy:', error);
+        }
+
+        try {
+          const quizzesQuery2 = query(
+            collection(db, 'quizzes'),
+            where('creatorId', '==', currentUser.uid)
+          );
+          const quizzesSnapshot2 = await getDocs(quizzesQuery2);
+          quizzes = [...quizzes, ...quizzesSnapshot2.docs.map(doc => doc.data())];
+        } catch (error) {
+          console.log('Error querying with creatorId:', error);
+        }
+
+        // Remove duplicates
+        const uniqueQuizzes = quizzes.filter((quiz, index, self) =>
+          index === self.findIndex(q => q.id === quiz.id)
+        );
+        console.log('Quizzes created found:', uniqueQuizzes.length);
+
+        // Calculate statistics from multiple sources
+        const allResults = [...sessions, ...aiResults];
+        const totalQuizzesTaken = allResults.length;
+
+        // Use user data if available, otherwise calculate from results
+        const averageScore = userData.averageScore ||
+          (allResults.length > 0
+            ? Math.round(allResults.reduce((sum, result) => sum + (result.percentage || 0), 0) / allResults.length)
+            : 0);
+
+        const quizzesOrganized = userData.quizzesCreated || uniqueQuizzes.length;
+        const totalParticipants = userData.totalParticipants ||
+          uniqueQuizzes.reduce((sum, quiz) => sum + (quiz.approvedParticipants?.length || 0), 0);
 
         setStats({
           totalQuizzesTaken,

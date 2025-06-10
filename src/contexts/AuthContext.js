@@ -46,6 +46,15 @@ export function AuthProvider({ children }) {
         email: email,
         name: name,
         role: userRole,
+        // Initialize user statistics
+        quizzesTaken: 0,
+        quizzesCreated: 0,
+        totalScore: 0,
+        averageScore: 0,
+        bestScore: 0,
+        totalTimeSpent: 0,
+        totalParticipants: 0,
+        lastQuizAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -84,6 +93,15 @@ export function AuthProvider({ children }) {
           email: user.email,
           name: user.displayName || 'Google User',
           role: userRole,
+          // Initialize user statistics
+          quizzesTaken: 0,
+          quizzesCreated: 0,
+          totalScore: 0,
+          averageScore: 0,
+          bestScore: 0,
+          totalTimeSpent: 0,
+          totalParticipants: 0,
+          lastQuizAt: null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
