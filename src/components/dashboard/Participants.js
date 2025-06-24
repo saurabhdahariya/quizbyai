@@ -50,36 +50,91 @@ const Participants = () => {
     try {
       setLoading(true);
       
-      // Load user's quizzes
-      const quizzesQuery = query(
-        collection(db, 'quizzes'),
-        where('creatorId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const quizzesSnapshot = await getDocs(quizzesQuery);
-      const quizzesData = quizzesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      setQuizzes(quizzesData);
+      // Load user's quizzes (try both field names)
+      let allQuizzes = [];
 
-      // Load quiz results for user's quizzes
-      const resultsQuery = query(
-        collection(db, 'quiz_results'),
-        where('quizCreatorId', '==', currentUser.uid),
-        orderBy('submittedAt', 'desc')
+      try {
+        const quizzesQuery1 = query(
+          collection(db, 'quizzes'),
+          where('creatorId', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const quizzesSnapshot1 = await getDocs(quizzesQuery1);
+        allQuizzes = [...allQuizzes, ...quizzesSnapshot1.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+      } catch (error) {
+        console.log('Error with creatorId query:', error);
+      }
+
+      try {
+        const quizzesQuery2 = query(
+          collection(db, 'quizzes'),
+          where('createdBy', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const quizzesSnapshot2 = await getDocs(quizzesQuery2);
+        allQuizzes = [...allQuizzes, ...quizzesSnapshot2.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+      } catch (error) {
+        console.log('Error with createdBy query:', error);
+      }
+
+      // Remove duplicates
+      const uniqueQuizzes = allQuizzes.filter((quiz, index, self) =>
+        index === self.findIndex(q => q.id === quiz.id)
       );
-      
-      const resultsSnapshot = await getDocs(resultsQuery);
-      const participantsData = resultsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        submittedAt: doc.data().submittedAt?.toDate() || new Date()
-      }));
-      
-      setParticipants(participantsData);
+
+      setQuizzes(uniqueQuizzes);
+
+      // Load quiz results for user's quizzes from multiple collections
+      let allParticipants = [];
+
+      // Get quiz IDs for filtering
+      const quizIds = uniqueQuizzes.map(q => q.id);
+
+      // Load from quiz_results collection
+      try {
+        const resultsQuery = query(
+          collection(db, 'quiz_results'),
+          where('quizCreatorId', '==', currentUser.uid),
+          orderBy('submittedAt', 'desc')
+        );
+        const resultsSnapshot = await getDocs(resultsQuery);
+        allParticipants = [...allParticipants, ...resultsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          submittedAt: doc.data().submittedAt?.toDate() || new Date()
+        }))];
+      } catch (error) {
+        console.log('Error loading quiz_results:', error);
+      }
+
+      // Load from quiz_sessions collection (for AI quizzes that might be organized)
+      try {
+        if (quizIds.length > 0) {
+          const sessionsQuery = query(
+            collection(db, 'quiz_sessions'),
+            where('quizId', 'in', quizIds.slice(0, 10)), // Firestore 'in' limit is 10
+            orderBy('completedAt', 'desc')
+          );
+          const sessionsSnapshot = await getDocs(sessionsQuery);
+          allParticipants = [...allParticipants, ...sessionsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            submittedAt: doc.data().completedAt?.toDate() || new Date(),
+            // Map fields for consistency
+            totalQuestions: doc.data().numQuestions,
+            timeSpent: doc.data().timeSpent
+          }))];
+        }
+      } catch (error) {
+        console.log('Error loading quiz_sessions:', error);
+      }
+
+      // Remove duplicates and set participants
+      const uniqueParticipants = allParticipants.filter((participant, index, self) =>
+        index === self.findIndex(p => p.id === participant.id)
+      );
+
+      setParticipants(uniqueParticipants);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {

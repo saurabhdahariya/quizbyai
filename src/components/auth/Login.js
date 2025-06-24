@@ -26,8 +26,10 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, signInWithGoogle } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const { login, signInWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -61,6 +63,33 @@ function Login() {
     } catch (error) {
       console.error('Google sign in error:', error);
       setError('Failed to sign in with Google. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    try {
+      setError('');
+      setSuccess('');
+      setLoading(true);
+      await resetPassword(email);
+      setSuccess('Password reset email sent! Check your inbox.');
+      setShowForgotPassword(false);
+    } catch (error) {
+      console.error('Password reset error:', error);
+      if (error.code === 'auth/user-not-found') {
+        setError('No account found with this email address');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('Please enter a valid email address');
+      } else {
+        setError('Failed to send password reset email. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -141,6 +170,17 @@ function Login() {
                         </motion.div>
                       )}
 
+                      {success && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center text-green-600 dark:text-green-400"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <p className="text-xs">{success}</p>
+                        </motion.div>
+                      )}
+
                       <Input
                         label="Email Address"
                         type="email"
@@ -162,6 +202,17 @@ function Login() {
                         icon={<Lock className="h-4 w-4 text-slate-400" />}
                         className="text-sm"
                       />
+
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={handleForgotPassword}
+                          disabled={loading}
+                          className="text-xs text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+                        >
+                          Forgot your password?
+                        </button>
+                      </div>
                     </CardContent>
 
                     <CardFooter className="flex flex-col gap-3 px-6 pb-6">

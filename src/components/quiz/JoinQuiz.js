@@ -18,8 +18,9 @@ import {
 import Button from '../ui/Button';
 import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../ui/Card';
 import Input from '../ui/Input';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { applyToQuiz, canAccessQuiz } from '../../services/quizService';
 
 const JoinQuiz = () => {
   const navigate = useNavigate();
@@ -78,14 +79,42 @@ const JoinQuiz = () => {
     try {
       setJoining(true);
       setError('');
-      
-      // TODO: Implement join logic
-      // For now, navigate to quiz details
-      navigate(`/quiz/${quizId}/join`);
-      
+      setSuccess('');
+
+      // Get quiz details
+      const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
+      if (!quizDoc.exists()) {
+        setError('Quiz not found');
+        return;
+      }
+
+      const quiz = quizDoc.data();
+      const now = new Date();
+      const startTime = quiz.startTime?.toDate ? quiz.startTime.toDate() : new Date(quiz.startTime);
+
+      // Check if quiz hasn't started yet
+      if (startTime <= now) {
+        setError('This quiz has already started');
+        return;
+      }
+
+      // Check if quiz requires application
+      if (quiz.requiresApplication) {
+        // Apply to join the quiz
+        await applyToQuiz(quizId, currentUser);
+        setSuccess('Application submitted! You will be notified when approved.');
+      } else {
+        // Direct join - navigate to quiz waiting room or details
+        navigate(`/quiz/${quizId}/details`);
+      }
+
     } catch (error) {
       console.error('Error joining quiz:', error);
-      setError('Failed to join quiz');
+      if (error.message.includes('already applied')) {
+        setError('You have already applied to this quiz');
+      } else {
+        setError('Failed to join quiz. Please try again.');
+      }
     } finally {
       setJoining(false);
     }
@@ -100,13 +129,40 @@ const JoinQuiz = () => {
     try {
       setJoining(true);
       setError('');
-      
-      // TODO: Implement private quiz join logic
-      navigate(`/quiz/${privateQuizId}/join`);
-      
+      setSuccess('');
+
+      // Check if quiz exists
+      const quizDoc = await getDoc(doc(db, 'quizzes', privateQuizId.trim()));
+      if (!quizDoc.exists()) {
+        setError('Quiz not found. Please check the quiz ID.');
+        return;
+      }
+
+      const quiz = quizDoc.data();
+
+      // Check access permissions
+      const accessCheck = await canAccessQuiz(privateQuizId.trim(), currentUser.uid, 'custom');
+
+      if (accessCheck.canAccess) {
+        // User can access - navigate to quiz
+        navigate(`/quiz/${privateQuizId.trim()}/details`);
+      } else {
+        // Need to apply for access
+        if (quiz.requiresApplication) {
+          await applyToQuiz(privateQuizId.trim(), currentUser);
+          setSuccess('Application submitted! You will be notified when approved.');
+        } else {
+          setError('You don\'t have permission to join this private quiz.');
+        }
+      }
+
     } catch (error) {
       console.error('Error joining private quiz:', error);
-      setError('Invalid quiz ID or you don\'t have permission to join this quiz');
+      if (error.message.includes('already applied')) {
+        setError('You have already applied to this quiz');
+      } else {
+        setError('Invalid quiz ID or you don\'t have permission to join this quiz');
+      }
     } finally {
       setJoining(false);
     }

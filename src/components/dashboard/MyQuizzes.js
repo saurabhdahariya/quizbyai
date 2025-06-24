@@ -44,20 +44,44 @@ const MyQuizzes = () => {
   const loadMyQuizzes = async () => {
     try {
       setLoading(true);
-      
-      const q = query(
-        collection(db, 'quizzes'),
-        where('creatorId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
+
+      // Try both field names for creator
+      let allQuizzes = [];
+
+      try {
+        const q1 = query(
+          collection(db, 'quizzes'),
+          where('creatorId', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const snapshot1 = await getDocs(q1);
+        allQuizzes = [...allQuizzes, ...snapshot1.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+      } catch (error) {
+        console.log('Error with creatorId query:', error);
+      }
+
+      try {
+        const q2 = query(
+          collection(db, 'quizzes'),
+          where('createdBy', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const snapshot2 = await getDocs(q2);
+        allQuizzes = [...allQuizzes, ...snapshot2.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+      } catch (error) {
+        console.log('Error with createdBy query:', error);
+      }
+
+      // Remove duplicates and format data
+      const uniqueQuizzes = allQuizzes.filter((quiz, index, self) =>
+        index === self.findIndex(q => q.id === quiz.id)
       );
 
-      const snapshot = await getDocs(q);
-      const quizzesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        startTime: doc.data().startTime?.toDate() || new Date(),
-        endTime: doc.data().endTime?.toDate() || new Date()
+      const quizzesData = uniqueQuizzes.map(quiz => ({
+        ...quiz,
+        createdAt: quiz.createdAt?.toDate() || new Date(),
+        startTime: quiz.startTime?.toDate() || new Date(),
+        endTime: quiz.endTime?.toDate() || new Date()
       }));
 
       setQuizzes(quizzesData);

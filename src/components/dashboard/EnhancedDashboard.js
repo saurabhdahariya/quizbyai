@@ -387,7 +387,7 @@ const EnhancedDashboard = () => {
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="shadow-lg hover:shadow-xl transition-all cursor-pointer" onClick={() => navigate('/quiz/generate')}>
+              <Card className="shadow-lg hover:shadow-xl transition-all cursor-pointer" onClick={() => navigate('/dashboard/ai-quiz')}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
